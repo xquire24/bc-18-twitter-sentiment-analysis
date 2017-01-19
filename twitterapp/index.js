@@ -9,7 +9,6 @@ var readline    = require('readline');
 var touch       = require('touch');
 var fs          = require('fs');
 var AlchemyAPI  = require('alchemy-api');
-var files       = require('./lib/files');
 require('dotenv').config()
 
 
