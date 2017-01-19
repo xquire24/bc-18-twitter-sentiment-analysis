@@ -8,13 +8,14 @@ var _           = require('lodash');
 var readline    = require('readline');
 var touch       = require('touch');
 var fs          = require('fs');
+var AlchemyAPI  = require('alchemy-api');
 var files       = require('./lib/files');
 require('dotenv').config()
 
 
 clear();
 console.log(
-  chalk.blue(
+  chalk.blue(+
     figlet.textSync('Twitter', { horizontalLayout: 'full' })
   )
 );
@@ -42,7 +43,10 @@ client.get('https://api.twitter.com/1.1/statuses/user_timeline.json', params, fu
     var theTweets = []
     tweetLength = tweets.length;
     for (var i = 0; i < tweetLength; i++){
+          var perc = i++;
+          console.log('\nTweets ' + '----> ' + tweets[i].text + '\n');
           theTweets += tweets[i].text;
+          console.log('percentage ' + perc/tweetLength *100 + '%');
           fs.writeFile('words.json', theTweets, finished);
 
           function finished(err){
@@ -61,14 +65,7 @@ function refine(data2){
   var prevChar = " ";
   var trim = data2.replace(/([.#,;_'$!&*:*+?^=!@:${}()|\[\]\/\\])/g," ")
   var trim2 = trim.replace(/(\t\n|\n|\t|http|-|[0-9]|  )/gm," ");
-    for(var i = 0; i < trim2.length; i++){
-      var currentChar = trim2[i];
-        if(!(prevChar==" "&&currentChar==prevChar))
-           result += currentChar;
-
-           prevChar = currentChar;
-           }
-           return result;
+    return trim2;
            }
 
 
@@ -89,7 +86,23 @@ return obj;
 }
 
 var arrange = analyse(newString)
-console.log(arrange);
+
+function sortProperties(obj){
+  // convert object into array
+    var sortable=[];
+    for(var key in obj)
+        if(obj.hasOwnProperty(key))
+            sortable.push([key, obj[key]]); // each item is an array in format [key, value]
+
+    // sort items by value
+    sortable.sort(function(a, b)
+    {
+      return b[1]-a[1]; // compare numbers
+    });
+    return sortable; // array in format [ [ key1, val1 ], [ key2, val2 ], ... ]
+}
+var arranged = sortProperties(arrange);
+console.log(arranged);
  rl.close();
 });
 
