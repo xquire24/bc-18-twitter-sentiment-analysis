@@ -32,6 +32,7 @@
     "preferences": "^0.2.1",
     "stopword": "^0.1.1",
     "touch": "^1.0.0",
-    "twitter": "^1.7.0"
+    "twitter": "^1.7.0",
+    "watson-developer-cloud": "^2.15.2"
   }
 }

@@ -2,20 +2,20 @@ var chalk       = require('chalk');
 var clear       = require('clear');
 var CLI         = require('clui');
 var figlet      = require('figlet');
-var sw          = require('stopword')
 var Twitter     = require('twitter');
 var _           = require('lodash');
 var readline    = require('readline');
 var touch       = require('touch');
 var fs          = require('fs');
-var AlchemyAPI  = require('alchemy-api');
+var frequency   = require('./analysedFreq')
+var sw          = require('stopword')
 require('dotenv').config()
 
 
 clear();
 console.log(
-  chalk.blue(+
-    figlet.textSync('Twitter', { horizontalLayout: 'full' })
+  chalk.blue(
+    figlet.textSync('Twitter App', { horizontalLayout: 'full' })
   )
 );
 
@@ -34,74 +34,112 @@ var rl=readline.createInterface({
 });
 
 
-rl.question('Enter your username ', (answer) => {
-  console.log('Fetching tweets...');
-var params = {screen_name:answer,count: 100, exclude_replies: true};
-client.get('https://api.twitter.com/1.1/statuses/user_timeline.json', params, function(error, tweets, response) {
-  if (!error) {
-    var theTweets = []
-    tweetLength = tweets.length;
-    for (var i = 0; i < tweetLength; i++){
+rl.question(chalk.blue('Enter your Twitter handle: '), (twitterHandle) => {
+
+  if(twitterHandle) {
+    console.log(chalk.green('Authenticating'));
+    console.log(chalk.green('Fetching tweets....'));
+
+    client.get('statuses/user_timeline', {screen_name: twitterHandle, count: 50}, function(error, tweets, response){
+      if(!error) {
+        
+        tweetLength = tweets.length;
+        var tweetList = [];
+
+        for (var i=0; i<tweetLength; i++) {
           var perc = i++;
+          var tweet = tweets[i];
           console.log('\nTweets ' + '----> ' + tweets[i].text + '\n');
-          theTweets += tweets[i].text;
-          console.log('percentage ' + perc/tweetLength *100 + '%');
-          fs.writeFile('words.json', theTweets, finished);
+          tweetList += tweet.text + " ";
+          console.log(chalk.red('percentage ' + Math.round(perc/tweetLength *100) + '%'));
+        }
+          var obj = {tweet: tweetList}
+          var file = 'words.json';
 
-          function finished(err){
-            return 'Done';
-          }
-    }
-    } else {
-      console.log('There was an error getting your tweets', error)
-    }
-})
+          fs.writeFile(file, obj, function (err) {
+          console.error(err)
+          })
 
-var data2 = fs.readFileSync('words.json').toString().toLowerCase();
+        
+        rl.question(chalk.blue('Enter 1 for word analysis or 2 for sentiment analysis: '), (reply)  => {
 
-function refine(data2){
-  var result = "";
-  var prevChar = " ";
-  var trim = data2.replace(/([.#,;_'$!&*:*+?^=!@:${}()|\[\]\/\\])/g," ")
-  var trim2 = trim.replace(/(\t\n|\n|\t|http|-|[0-9]|  )/gm," ");
-    return trim2;
-           }
+          if(reply==1){
+            client.get('statuses/user_timeline', {screen_name: twitterHandle, count:50}, function(error, tweets, response){
+              if(!error) {
+                var tweetObj = {tweets: tweets};
+                var tweetLength = tweetObj.tweets.length;
+                var allTweet = '';
+                for (let i =0; i < tweetLength -1; i++){
+                  allTweet +=  tweetObj.tweets[i].text;
+                }
+                
+                words = frequency(allTweet);
+
+                for (var key in words){
+                  if(key == 10) break;
+                  if (words.hasOwnProperty(key)) {
+                    console.log(chalk.yellow('Word: '+ words[key].word +' <===> Frequency: '+ words[key].freq));
+                  }
+                }
 
 
-var refined = refine(data2)
-var oldString = refined.split(' ');
-var newString = sw.removeStopwords(oldString);
+              }
+              rl.close();
+            });
+          } else if(reply = 2){
+            client.get('statuses/user_timeline', {screen_name: twitterHandle, count:15}, function(error, tweets, response){
+              if (!error){
+                var theTweets = ""
+                var tweetLength = tweets.length;
 
-function analyse(newString){
-obj = {};
-for (var i=0; i<newString.length; i++){
-  if(obj[newString[i]]===undefined){
-    obj[newString[i]]=1;
-  }else{
-    obj[newString[i]]++;
-  }
-}
-return obj;
-}
+                for (var i = 0; i < tweetLength; i++){
+                  theTweets += tweets[i].text;
+                  var trimmed = theTweets.replace(/href\s*=\s*(['"])(https?:\/\/.+?)\1/ig,''); 
+                  trimmed = trimmed.replace(/[^\w\s]/gi, ''); 
+                  trimmed = trimmed.replace(/[\s\n\t\r]+/g, ' ');
+                  trimmed = trimmed.replace(/([.#,;_'$!&*:*+?^=!@:${}()|\[\]\/\\])/g," ")
+                  trimmed = trimmed.replace(/(\t\n|\n|\t|http|-|[0-9]  )/gm," "); 
+                  trimmed = trimmed.split(' ').sort(); 
+                  var newString= sw.removeStopwords(trimmed);
 
-var arrange = analyse(newString)
+                  //alchemy implementation
 
-function sortProperties(obj){
-  // convert object into array
-    var sortable=[];
-    for(var key in obj)
-        if(obj.hasOwnProperty(key))
-            sortable.push([key, obj[key]]); // each item is an array in format [key, value]
-
-    // sort items by value
-    sortable.sort(function(a, b)
-    {
-      return b[1]-a[1]; // compare numbers
-    });
-    return sortable; // array in format [ [ key1, val1 ], [ key2, val2 ], ... ]
-}
-var arranged = sortProperties(arrange);
-console.log(arranged);
- rl.close();
-});
-
+                  var AlchemyLanguageV1 = require('watson-developer-cloud/alchemy-language/v1');
+ 
+        var alchemy_language = new AlchemyLanguageV1({
+                api_key: process.env.ALCHEMY_API_KEY
+                });
+ 
+               var params = {
+                text: newString
+                };
+ 
+              alchemy_language.sentiment(params, function (err, response) {
+                  if (err)
+                  console.log('error:', err);
+                  else {
+                   var docSentiment = response.docSentiment
+                   var sentiment = []
+                   for (var key in docSentiment){
+                   sentiment.push([key, docSentiment[key]])
+                 }
+                }
+                  console.log(chalk.yellow('Your sentiment value is ' + sentiment)); 
+                })
+                }
+                } else {
+                  console.log(chalk.red('Please enter 1 or 2'));
+                }
+                rl.close();
+                });
+                } else {
+                 console.log(chalk.red('Please enter a valid Twitter username'));
+                rl.close();
+                }
+                })
+                }else{
+                rl.close();
+                }
+                })
+                }
+                })
