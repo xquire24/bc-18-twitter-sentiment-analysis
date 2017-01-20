@@ -33,7 +33,7 @@ var rl=readline.createInterface({
   output: process.stdout
 });
 
-
+//check for twitter handle
 rl.question(chalk.blue('Enter your Twitter handle: '), (twitterHandle) => {
 
   if(twitterHandle) {
@@ -60,7 +60,8 @@ rl.question(chalk.blue('Enter your Twitter handle: '), (twitterHandle) => {
           console.error(err)
           })
 
-        
+
+        //decide to perform a word frequency or a sentiment analysis
         rl.question(chalk.blue('Enter 1 for word analysis or 2 for sentiment analysis: '), (reply)  => {
 
           if(reply==1){
@@ -102,6 +103,7 @@ rl.question(chalk.blue('Enter your Twitter handle: '), (twitterHandle) => {
                   trimmed = trimmed.split(' ').sort(); 
                   var newString= sw.removeStopwords(trimmed);
 
+                  
                   //alchemy implementation
 
                   var AlchemyLanguageV1 = require('watson-developer-cloud/alchemy-language/v1');
